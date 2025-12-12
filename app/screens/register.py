@@ -30,8 +30,6 @@ class RegisterScreen(tk.Frame):
             bg="#2196F3",
             fg="white",
             font=("Arial", 11, "bold"),
-            padx=20,
-            pady=10
         )
         self.capture_btn.pack(pady=10)
         
@@ -129,12 +127,12 @@ class RegisterScreen(tk.Frame):
             # Mostrar formulario nuevamente
             self.form_frame.pack(pady=10, padx=10)
 
-        tomar_btn = tk.Button(controls, text="📷 Tomar Captura", command=tomar_captura, 
+        tomar_btn = tk.Button(controls, text="Tomar Captura", command=tomar_captura, 
                              bg="#4CAF50", fg="white", font=("Arial", 12, "bold"), 
-                             padx=20, pady=10)
+                             )
         cerrar_btn = tk.Button(controls, text="Cerrar", command=cerrar, 
                               bg="#f44336", fg="white", font=("Arial", 10), 
-                              padx=15, pady=5)
+                              )
         tomar_btn.pack(side=tk.LEFT, padx=10)
         cerrar_btn.pack(side=tk.LEFT, padx=10)
 
