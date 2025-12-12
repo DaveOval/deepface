@@ -1,7 +1,6 @@
 import tkinter as tk
 from app.screens.home import HomeScreen
-
-print("Starting the Face Detector App...")
+from app.screens.register import RegisterScreen
 
 class App(tk.Tk):
     def __init__(self):
@@ -15,7 +14,7 @@ class App(tk.Tk):
         
         self.frames = {}
         
-        for Screen in (HomeScreen,):
+        for Screen in (HomeScreen, RegisterScreen):
             frame = Screen(parent=container, controller=self)
             self.frames[Screen] = frame
             frame.grid(row=0, column=0, sticky="nsew")
