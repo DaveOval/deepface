@@ -1,1 +1,4 @@
 tkinter
+deepface
+opencv-python
+Pillow

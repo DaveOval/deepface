@@ -6,7 +6,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         
-        self.title("Face detector app")
+        self.title("Registro de asistencia por reconocimiento facial")
         self.geometry("800x600")
         
         container = tk.Frame(self)
