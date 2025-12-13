@@ -19,9 +19,14 @@ class RegisterScreen(tk.Frame):
         
         # Input for name
         self.name_var = tk.StringVar()
-        tk.Label(self.form_frame, text="Nombre:").pack()
+        tk.Label(self.form_frame, text="Nombre: *").pack()
         self.name_entry = tk.Entry(self.form_frame, textvariable=self.name_var, font=("Arial", 11))
         self.name_entry.pack(pady=5)
+        # Input for last name
+        self.lastname_var = tk.StringVar()
+        tk.Label(self.form_frame, text="Apellido: *").pack()
+        self.lastname_entry = tk.Entry(self.form_frame, textvariable=self.lastname_var, font=("Arial", 11))
+        self.lastname_entry.pack(pady=5)
         
         # Button to photo capture
         self.capture_btn = tk.Button(
@@ -42,13 +47,27 @@ class RegisterScreen(tk.Frame):
         
     def capture_photos(self):
         nombre = self.name_var.get().strip()
+        apellido = self.lastname_var.get().strip()
         
         if not nombre:
             tkinter.messagebox.showwarning("Error", "Por favor, ingrese un nombre válido.")
             return
+        elif nombre.isdigit():
+            tkinter.messagebox.showwarning("Error", "El nombre no puede ser un número.")
+            return
+        
+        if not apellido:
+            tkinter.messagebox.showwarning("Error", "Por favor, ingrese un apellido válido.")
+            return
+        elif apellido.isdigit():
+            tkinter.messagebox.showwarning("Error", "El apellido no puede ser un número.")
+            return
+        
+        nombre = nombre.replace(" ", "_")
+        apellido = apellido.replace(" ", "_")
         
         id_unico = str(uuid.uuid4())[:8]
-        nombre_unico = f"{nombre}_{id_unico}"
+        nombre_unico = f"{nombre}_{apellido}_{id_unico}"
         
         ruta = f"static/captures/{nombre_unico}"
         os.makedirs(ruta, exist_ok=True)
