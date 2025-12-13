@@ -3,6 +3,15 @@ from deepface import DeepFace
 import cv2
 import numpy as np
 
+# Cargar el clasificador de rostros de OpenCV
+face_cascade = None
+def get_face_cascade():
+    global face_cascade
+    if face_cascade is None:
+        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        face_cascade = cv2.CascadeClassifier(cascade_path)
+    return face_cascade
+
 def load_registered_students():
     students = {}
     captures_dir = "static/captures"
@@ -30,10 +39,25 @@ def load_registered_students():
 
 def recognize_face(frame, registered_students, threshold=0.5):
     if not registered_students:
-        return None, None
+        return None, None, None
+
+    # Detectar rostro con OpenCV primero (más rápido)
+    face_region = None
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    cascade = get_face_cascade()
+    faces = cascade.detectMultiScale(gray, 1.1, 4)
+    
+    if len(faces) > 0:
+        # Usar el primer rostro detectado
+        x, y, w, h = faces[0]
+        face_region = (x, y, w, h)
+        # Recortar el rostro para el reconocimiento
+        face_crop = frame[y:y+h, x:x+w]
+    else:
+        face_crop = frame
 
     temp_path = "temp_frame.jpg"
-    cv2.imwrite(temp_path, frame)
+    cv2.imwrite(temp_path, face_crop)
 
     try:
         best_match = None
@@ -62,11 +86,11 @@ def recognize_face(frame, registered_students, threshold=0.5):
             os.remove(temp_path)
         
         if best_match and best_distance < threshold:
-            return best_match, best_distance
+            return best_match, best_distance, face_region
         
-        return None, None
+        return None, None, face_region
         
     except Exception as e:
         if os.path.exists(temp_path):
             os.remove(temp_path)
-        return None, None
+        return None, None, face_region

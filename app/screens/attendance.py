@@ -4,6 +4,7 @@ import cv2
 from PIL import Image, ImageTk
 import uuid
 from datetime import datetime
+import threading
 
 from app.utilities.go_home import go_home
 from app.utilities.face_recognition import load_registered_students, recognize_face
@@ -21,6 +22,8 @@ class AttendanceScreen(tk.Frame):
         self.registered_students = {}
         self.session_id = None
         self.present_students = set()
+        self.recognition_in_progress = False  # Para evitar múltiples reconocimientos simultáneos
+        self.current_recognized = None  # (nombre, face_region) del último reconocido
         
         # Header superior
         header = tk.Frame(self, bg="#34495E", height=60)
@@ -211,6 +214,7 @@ class AttendanceScreen(tk.Frame):
         self.present_students.clear()
         self.present_listbox.delete(0, tk.END)
         self.count_var.set("Total: 0")
+        self.current_recognized = None  # Limpiar reconocimiento previo
         
         self.cap = None
         for idx in [0, 1, 2]:
@@ -251,6 +255,8 @@ class AttendanceScreen(tk.Frame):
     def stop_recognition(self):
         self.recognition_active = False
         self.preview_running = False
+        self.recognition_in_progress = False  # Resetear el flag
+        self.current_recognized = None  # Limpiar reconocimiento actual
         
         if self.cap:
             self.cap.release()
@@ -268,6 +274,40 @@ class AttendanceScreen(tk.Frame):
             fg="white"
         )
     
+    def _recognize_face_thread(self, frame):
+        """Ejecuta el reconocimiento facial en un hilo separado"""
+        try:
+            student_name, distance, face_region = recognize_face(frame, self.registered_students)
+            
+            if student_name:
+                # Actualizar GUI desde el hilo principal
+                self.after(0, self._update_attendance_ui, student_name, distance, face_region)
+            else:
+                # Si no se reconoce, limpiar el reconocimiento actual
+                self.after(0, self._clear_recognition)
+        except Exception as e:
+            print(f"Error en reconocimiento: {e}")
+            self.after(0, self._clear_recognition)
+        finally:
+            self.recognition_in_progress = False
+    
+    def _update_attendance_ui(self, student_name, distance, face_region):
+        """Actualiza la UI con el resultado del reconocimiento (llamado desde hilo principal)"""
+        # Guardar información del reconocimiento para dibujar en el video
+        self.current_recognized = (student_name, face_region)
+        
+        if student_name not in self.present_students:
+            if record_attendance(student_name, self.session_id):
+                self.present_students.add(student_name)
+                self.present_listbox.insert(tk.END, f"✓ {student_name}")
+                count = len(self.present_students)
+                self.count_var.set(f"Total: {count}")
+                self.status_var.set(f"✅ {student_name} registrado - Distancia: {distance:.3f}")
+    
+    def _clear_recognition(self):
+        """Limpia el reconocimiento actual"""
+        self.current_recognized = None
+    
     def update_preview(self):
         if not self.preview_running:
             return
@@ -280,22 +320,61 @@ class AttendanceScreen(tk.Frame):
             self.preview_label.after(100, self.update_preview)
             return
         
-        if self.recognition_active:
+        # Reconocimiento facial en hilo separado para no bloquear la GUI
+        if self.recognition_active and not self.recognition_in_progress:
             if not hasattr(self, 'frame_count'):
                 self.frame_count = 0
             
             self.frame_count += 1
-            if self.frame_count % 30 == 0:
-                student_name, distance = recognize_face(frame, self.registered_students)
+            if self.frame_count % 30 == 0:  # Procesar cada 30 frames
+                # Guardar una copia del frame para el hilo
+                frame_copy = frame.copy()
+                self.recognition_in_progress = True
                 
-                if student_name:
-                    if student_name not in self.present_students:
-                        if record_attendance(student_name, self.session_id):
-                            self.present_students.add(student_name)
-                            self.present_listbox.insert(tk.END, f"✓ {student_name}")
-                            count = len(self.present_students)
-                            self.count_var.set(f"Total: {count}")
-                            self.status_var.set(f"✅ {student_name} registrado - Distancia: {distance:.3f}")
+                # Ejecutar reconocimiento en hilo separado
+                thread = threading.Thread(
+                    target=self._recognize_face_thread,
+                    args=(frame_copy,),
+                    daemon=True
+                )
+                thread.start()
+        
+        # Dibujar cuadro con nombre si hay un reconocimiento activo
+        if self.current_recognized:
+            student_name, face_region = self.current_recognized
+            if face_region:
+                x, y, w, h = face_region
+                # Dibujar rectángulo alrededor del rostro
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                
+                # Preparar texto con el nombre
+                text = student_name
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.7
+                thickness = 2
+                
+                # Obtener tamaño del texto
+                (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                
+                # Dibujar fondo para el texto
+                cv2.rectangle(
+                    frame,
+                    (x, y - text_height - baseline - 10),
+                    (x + text_width + 10, y),
+                    (0, 255, 0),
+                    -1
+                )
+                
+                # Dibujar el texto
+                cv2.putText(
+                    frame,
+                    text,
+                    (x + 5, y - baseline - 5),
+                    font,
+                    font_scale,
+                    (0, 0, 0),
+                    thickness
+                )
         
         try:
             if len(frame.shape) == 2:
