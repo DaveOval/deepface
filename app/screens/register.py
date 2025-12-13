@@ -3,6 +3,7 @@ import tkinter.messagebox
 import cv2
 import os
 from PIL import Image, ImageTk
+import uuid
 
 from app.utilities.go_home import go_home
 
@@ -46,7 +47,10 @@ class RegisterScreen(tk.Frame):
             tkinter.messagebox.showwarning("Error", "Por favor, ingrese un nombre válido.")
             return
         
-        ruta = f"static/captures/{nombre}"
+        id_unico = str(uuid.uuid4())[:8]
+        nombre_unico = f"{nombre}_{id_unico}"
+        
+        ruta = f"static/captures/{nombre_unico}"
         os.makedirs(ruta, exist_ok=True)
         
         # Intentar abrir cámara automáticamente
