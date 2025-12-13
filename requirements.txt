@@ -2,3 +2,4 @@ tkinter
 deepface
 opencv-python
 Pillow
+tf-keras
